@@ -68,3 +68,6 @@ python /
 sketch / 
 sklearn /
 tensorflow 
+
+#Notes
+To use the DialogFlow application, download the zip, create a new agent on DialogFlow at https://dialogflow.cloud.google.com/, and import the zip file!
