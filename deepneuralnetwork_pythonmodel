@@ -1,0 +1,116 @@
+import sys 
+import pandas as pd 
+import numpy as np 
+import sklearn as sk 
+import keras 
+ 
+# Import dataset 
+df = pd.read_csv("diabetes.csv")
+df.dropna(inplace=True)
+
+# Convert df into a numpy array 
+dataset = df.values 
+print(dataset.shape)
+
+# Split dataset into input (x) and an output (Y) 
+X = dataset[:,0:8]
+Y = dataset[:,8].astype(int)
+print(X.shape)
+print(Y.shape)
+print(Y[:5])
+
+# Normalize data to have a mean = 0, stdev = 1; remove any added biases (parameters won't be weighted unequally) 
+from sklearn.preprocessing import StandardScaler 
+scaler = StandardScaler().fit(X)
+print(scaler)
+
+# Transform and display the training data 
+X_standardized = scaler.transform(X)
+data = pd.DataFrame(X_standardized)
+data.describe()
+
+# Import packages 
+from sklearn.model_selection import GridSearchCV, KFold 
+from tensorflow.keras.models import Sequential 
+from tensorflow.keras.layers import Dense 
+from tensorflow.keras.wrappers.scikit_learn import KerasClassifier 
+from tensorflow.keras.optimizers import Adam
+# from tensorflow.keras.layers import Dropout
+
+# Define a random seed 
+seed = 6
+np.random.seed(seed)
+
+# Define the model 
+def create_model(neuron1, neuron2):
+    # create model 
+    model = Sequential()
+    model.add(Dense(16, input_dim = 8, kernel_initializer= 'normal', activation= 'linear'))
+    # model.add(Dropout(dropout_rate))
+    model.add(Dense(4, input_dim = 8, kernel_initializer= 'normal', activation= 'linear'))
+    # model.add(Dropout(dropout_rate))
+    model.add(Dense(1, activation='sigmoid'))
+    
+    # Compile the model 
+    # adam = Adam(lr = learn_rate)
+    adam = Adam(lr = 0.001)
+    model.compile(loss = 'binary_crossentropy', optimizer = adam, metrics = ['accuracy'])
+    return model
+
+# Relatively small network with 113 parameters 
+# model = create_model()
+# print(model.summary())
+# Create the model 
+model = KerasClassifier(build_fn = create_model, epochs = 100, batch_size = 20, verbose = 0)
+
+# Define the grid search parameters 
+
+# batch size = the # of inputs the model should look at before it sums all the changes to the gradience and updates the weight parameters
+# epochs = run through the data x number of times 
+# batch_size = [10, 20, 40]
+# epochs = [10, 50, 100]
+
+# Adding drop-out regularization & optimize learning rate (due to overfitting to training dataset)
+# learn_rate = [0.001, 0.01, 0.1]
+# dropout_rate = [0.0, 0.1, 0.2]
+# activation = ['softmax', 'relu', 'tanh', 'linear']
+# init = ['uniform', 'normal', 'zero']
+
+neuron1 = [4, 8, 16]
+neuron2 = [2, 4, 8] 
+
+# Make a dictionary of the grid search parameters 
+param_grid = dict(neuron1=neuron1, neuron2=neuron2)
+
+# Build and fit the GridSearchCV 
+# Use KFold cross validation -- divide the dataset into 3 sets -- 2 parts into training data, 3rd part reserved for validation set
+grid = GridSearchCV(estimator = model, param_grid = param_grid, cv = KFold(random_state=seed), refit = True, verbose = 10)
+grid_results = grid.fit(X_standardized, Y)
+
+# Summarize the best results 
+print("Best: {0}, using {1}".format(grid_results.best_score_, grid_results.best_params_))
+means = grid_results.cv_results_['mean_test_score']
+stds = grid_results.cv_results_['std_test_score']
+params = grid_results.cv_results_['params']
+for mean, stdev, param in zip(means, stds, params):
+    print('{0} ({1}) with: {2}'.format(mean, stdev, param))
+    
+# Generate new predictions with hyperparameters 
+y_pred = grid.predict(X_standardized)
+print(y_pred.shape)
+print(y_pred[:5])
+
+# Generate a classsification report 
+# Precision looks at the # of true and false positives (0.74 is lower than the accuracy score of 0.78 so this dataset has some false positives)
+# F1 score is a combo of precision and recall, support is # of instances for each class 
+from sklearn.metrics import classification_report, accuracy_score
+print(accuracy_score(Y, y_pred))
+print(classification_report(Y, y_pred))
+
+# Example prediction datapoint 
+example = df.iloc[5]
+print(example)
+
+# Make a prediction using optimized deep neural network 
+prediction = grid.predict(X_standardized[5].reshape(1, -1))
+print(prediction)
