@@ -1,4 +1,4 @@
-# Sugr-Rush
+# Sugr Rush
 Just as diabetes can affect your quality of life, your quality of life can affect your diabetes.
 
 # Inspiration
